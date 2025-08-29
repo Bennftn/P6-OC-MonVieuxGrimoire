@@ -48,25 +48,58 @@ exports.getBestRating = async (req, res) => {
  */
 exports.createBook = async (req, res) => {
   try {
+    if (!req.body.book) {
+      return res.status(400).json({ message: 'Champ "book" manquant (form-data).' });
+    }
+
     const bookData = JSON.parse(req.body.book);
-    const imageUrl = req.savedImageName
-      ? `${req.protocol}://${req.get('host')}/images/${req.savedImageName}`
-      : null;
+    let candidates = [];
+    candidates.push(bookData.rating);
+    candidates.push(bookData.note);
+    candidates.push(bookData.grade);
+    if (Array.isArray(bookData.ratings) && bookData.ratings[0]?.grade != null) {
+      candidates.push(bookData.ratings[0].grade);
+    }
+    if (bookData.averageRating != null) candidates.push(bookData.averageRating);
+
+    let initialRating = candidates
+      .map(v => Number(v))
+      .find(n => Number.isFinite(n));
+
+    if (!Number.isFinite(initialRating)) initialRating = undefined;
+
+    delete bookData.rating;
+    delete bookData.note;
+    delete bookData.grade;
+    delete bookData.ratings;
+    delete bookData.averageRating;
+
+    if (!req.savedImageName) {
+      return res.status(400).json({ message: 'Image manquante ou format non supporté (jpg, png, webp)' });
+    }
+    const imageUrl = `${req.protocol}://${req.get('host')}/images/${req.savedImageName}`;
 
     const book = new Book({
       ...bookData,
       userId: req.auth.userId,
       imageUrl,
       ratings: [],
-      averageRating: 0,
+      averageRating: 0
     });
+    // Ajouter la note initiale si valide
+    if (Number.isFinite(initialRating) && initialRating >= 0 && initialRating <= 5) {
+      book.ratings.push({ userId: req.auth.userId, grade: initialRating });
+      book.averageRating = Math.round(initialRating * 10) / 10;
+    }
 
     await book.save();
     res.status(201).json({ message: 'Livre enregistré.' });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    console.error('createBook error:', err);
+    res.status(400).json({ message: err.message || 'Données invalides.' });
   }
 };
+
 
 /**
  * PUT /api/books/:id
