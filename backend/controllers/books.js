@@ -1,4 +1,3 @@
-// controllers/books.js
 const Book = require('../models/Book');
 const fs = require('fs');
 const path = require('path');
