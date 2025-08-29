@@ -1,3 +1,5 @@
+const booksRoutes = require('./routes/books');
+const path = require('path');
 const auth = require('./middleware/auth');
 require('dotenv').config();
 const express = require('express');
@@ -19,6 +21,12 @@ mongoose.connect(process.env.MONGO_URI, { dbName: process.env.MONGO_DB })
 app.use(express.json({ limit: '1mb' }));
 app.use(helmet());
 app.use(cors());
+
+// Servir les images
+app.use('/images', express.static(path.join(__dirname, 'images')));
+
+// Routes books
+app.use('/api/books', booksRoutes);
 
 // Anti-bruteforce sur /api/auth
 const authLimiter = rateLimit({
